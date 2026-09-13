@@ -1,0 +1,9 @@
+*.pth
+*.pt
+*.ckpt
+*.wav
+*.mp3
+__pycache__/
+venv/
+voiceguard-env/
+node_modules/
