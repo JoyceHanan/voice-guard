@@ -23,11 +23,12 @@ sys.path.insert(0, str(MODEL_DIR))
 sys.path.insert(0, str(BACKEND_DIR))
 
 from aasist_l import AASIST_L
-from classifier import classify
+from classifier import classify, classify_with_duration_check
 
 # Recommended decision threshold from optimization (Task 1)
 RECOMMENDED_THRESHOLD = 2.10
 MARGIN = 0.5
+MIN_DURATION = 4.0
 
 
 def load_detector():
@@ -37,14 +38,16 @@ def load_detector():
     return detector
 
 
-def predict_score(detector, wav_path: str) -> float:
-    """Read WAV file, convert to mono 16kHz float32 array, and return AASIST-L score."""
+def predict_score_and_duration(detector, wav_path: str):
+    """Read WAV file, calculate duration, convert to mono 16kHz float32, and return score & duration."""
     audio, sr = sf.read(wav_path, dtype="float32")
+    duration_seconds = len(audio) / float(sr)
     if audio.ndim > 1:
         audio = audio.mean(axis=1)
     if sr != 16000:
         audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
-    return detector.score_batch([audio], [16000])[0]
+    score = detector.score_batch([audio], [16000])[0]
+    return score, duration_seconds
 
 
 def main():
@@ -75,22 +78,26 @@ def main():
     print("AASIST-L model loaded successfully.\n")
 
     print("Running inference...")
-    score = predict_score(detector, target_path)
+    score, duration = predict_score_and_duration(detector, target_path)
 
-    # Classify score
-    res = classify(score, RECOMMENDED_THRESHOLD, margin=MARGIN)
+    # Classify score with minimum duration check
+    res = classify_with_duration_check(
+        score, RECOMMENDED_THRESHOLD, duration_seconds=duration, min_duration=MIN_DURATION, margin=MARGIN
+    )
 
     # Print clear result line
     if res == "REAL":
         result_text = "RESULT: REAL"
     elif res == "FAKE":
         result_text = "RESULT: FAKE"
-    else:
+    elif res == "INCONCLUSIVE":
         result_text = "RESULT: INCONCLUSIVE (score too close to threshold)"
+    else:
+        result_text = f"RESULT: {res}"
 
     print("=" * 60)
     print(result_text)
-    print(f"Score: {score:.2f} | Threshold: {RECOMMENDED_THRESHOLD:.2f} | Result: {res}")
+    print(f"Score: {score:.2f} | Duration: {duration:.2f}s | Threshold: {RECOMMENDED_THRESHOLD:.2f} | Result: {res}")
     print("=" * 60)
 
 
