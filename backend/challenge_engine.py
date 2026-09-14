@@ -87,10 +87,16 @@ def verify_challenge_response(audio_file_path: str, expected_phrase: str) -> dic
         confidence = 0.0
     else:
         # Count expected words found in transcribed text
-        matched_words = sum(1 for word in expected_words if word in norm_transcribed)
+        matched_words = sum(1 for word in expected_words if word in norm_transcribed.split())
         confidence = round(float(matched_words / len(expected_words)), 2)
-        # Matched if at least 50% of challenge words are spoken correctly
-        matched = confidence >= 0.50
+
+        # Stricter Security Threshold:
+        # - For short phrases (<=3 words), require exact 100% word match (confidence == 1.0)
+        # - For longer phrases (>3 words), require at least 0.85 confidence (85% word match)
+        if len(expected_words) <= 3:
+            matched = confidence >= 1.0
+        else:
+            matched = confidence >= 0.85
 
     return {
         "matched": matched,

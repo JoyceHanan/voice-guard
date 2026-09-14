@@ -60,6 +60,10 @@ def compute_risk(
             "breakdown": {},
         }
 
+    # DESIGN DECISION: MODERATE audio quality does NOT receive an additional flat numeric risk penalty.
+    # Dynamic margin-widening in classifier.py already handles uncertainty at the classification boundary (±1.2).
+    # A flat penalty would double-penalize confidently-clear scores under moderate noise.
+
     breakdown = {}
 
     # 2. Voice Spoof Risk Component (from AASIST-L logit)

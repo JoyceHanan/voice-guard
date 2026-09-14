@@ -3,9 +3,10 @@
 Provides endpoints:
 - POST /enroll : Enrolls a speaker embedding vector.
 - GET /enrolled : Lists enrolled speaker IDs.
-- POST /analyze : Multi-factor risk assessment with caller classification & policy engine actions.
+- POST /analyze : Unified multi-factor risk assessment with caller classification & policy engine actions.
 - POST /challenge/generate : Generates a random active verification challenge phrase.
 - POST /challenge/verify : Verifies audio response against challenge phrase using Whisper STT.
+- GET /correlation/check : Scans flagged calls for multi-signal impersonation campaign clusters.
 """
 
 import io
@@ -39,8 +40,8 @@ from challenge_engine import (
     generate_challenge,
     verify_challenge_response,
     ACTIVE_CHALLENGES,
-    load_whisper_model,
 )
+from correlation_engine import log_flagged_call, check_correlation
 
 RECOMMENDED_THRESHOLD = 2.10
 MARGIN = 0.5
@@ -67,8 +68,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="VoiceGuard Deepfake & Active Challenge API",
-    version="1.4.0",
+    title="VoiceGuard Deepfake & Multi-Factor Security Platform API",
+    version="1.5.0",
     lifespan=lifespan,
 )
 
@@ -141,8 +142,9 @@ async def analyze_audio(
     known_caller: bool = Form(False),
     new_beneficiary: bool = Form(False),
     urgency: bool = Form(False),
+    transaction_amount: float = Form(0.0),
 ):
-    """Unified multi-factor risk assessment endpoint with action policy recommendation."""
+    """Unified multi-factor risk assessment endpoint with action policy recommendation and correlation logging."""
     if not detector:
         raise HTTPException(status_code=500, detail="Detector model not loaded.")
 
@@ -159,7 +161,6 @@ async def analyze_audio(
         audio, sr = sf.read(temp_path, dtype="float32")
         duration_seconds = float(len(audio) / sr)
 
-        # Estimate audio quality & SNR
         quality_label, snr_db = estimate_quality(audio, sr)
 
         if caller_number and caller_number.strip():
@@ -180,7 +181,6 @@ async def analyze_audio(
 
         score = detector.score_batch([audio], [16000])[0]
 
-        # Classify result with duration check and dynamic quality margin widening
         voice_result = classify_with_quality_and_duration(
             score,
             RECOMMENDED_THRESHOLD,
@@ -212,11 +212,18 @@ async def analyze_audio(
             min_duration=MIN_DURATION,
         )
 
-        # Override risk tier if dynamic margin classified voice as INCONCLUSIVE
         if voice_result.startswith("INCONCLUSIVE") and risk_fusion["tier"] != "INCONCLUSIVE":
             risk_fusion["tier"] = "INCONCLUSIVE"
             risk_fusion["score"] = None
             risk_fusion["reason"] = f"Voice classification inconclusive: {voice_result}"
+
+        # Automatically log flagged high-risk calls for correlation monitoring
+        log_flagged_call({
+            "caller_number": caller_number or "",
+            "score": round(float(score), 2),
+            "risk_tier": risk_fusion["tier"],
+            "transaction_amount": transaction_amount,
+        })
 
         rec_action = get_recommended_action(risk_fusion["tier"])
 
@@ -244,7 +251,7 @@ async def analyze_audio(
             os.remove(temp_path)
 
 
-# --- Challenge Engine Endpoints ---
+# --- Challenge & Correlation Endpoints ---
 
 @app.post("/challenge/generate")
 def api_generate_challenge():
@@ -281,6 +288,12 @@ async def api_verify_challenge(
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+@app.get("/correlation/check")
+def api_check_correlation():
+    """Scans recent flagged calls for multi-signal impersonation campaign clusters."""
+    return check_correlation()
 
 
 if __name__ == "__main__":
