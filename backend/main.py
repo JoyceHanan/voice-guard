@@ -4,6 +4,8 @@ Provides endpoints:
 - POST /enroll : Enrolls a speaker embedding vector.
 - GET /enrolled : Lists enrolled speaker IDs.
 - POST /analyze : Multi-factor risk assessment with caller classification & policy engine actions.
+- POST /challenge/generate : Generates a random active verification challenge phrase.
+- POST /challenge/verify : Verifies audio response against challenge phrase using Whisper STT.
 """
 
 import io
@@ -27,15 +29,22 @@ sys.path.insert(0, str(MODEL_DIR))
 sys.path.insert(0, str(BACKEND_DIR))
 
 from aasist_l import AASIST_L
-from classifier import classify_with_duration_check
+from classifier import classify_with_quality_and_duration
 from speaker_embed import compute_embedding, load_speaker_model
 from audio_quality import estimate_quality
 from fusion_engine import compute_risk
 from policy_engine import get_recommended_action
 from caller_registry import classify_caller
+from challenge_engine import (
+    generate_challenge,
+    verify_challenge_response,
+    ACTIVE_CHALLENGES,
+    load_whisper_model,
+)
 
 RECOMMENDED_THRESHOLD = 2.10
 MARGIN = 0.5
+MODERATE_MARGIN = 1.2
 MIN_DURATION = 4.0
 
 detector = None
@@ -58,8 +67,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="VoiceGuard Deepfake & Policy Risk Engine API",
-    version="1.3.0",
+    title="VoiceGuard Deepfake & Active Challenge API",
+    version="1.4.0",
     lifespan=lifespan,
 )
 
@@ -105,12 +114,10 @@ async def enroll_speaker(
 
     temp_path = None
     try:
-        # Write to temporary file with explicit cleanup in finally block
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             tmp.write(contents)
             temp_path = tmp.name
 
-        # Extract speaker embedding
         emb = compute_embedding(temp_path)
         ENROLLED_SPEAKERS[clean_id] = emb
 
@@ -122,7 +129,6 @@ async def enroll_speaker(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process enrollment audio: {e}")
     finally:
-        # Privacy & Disk Hygiene: Immediately delete temporary file
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
@@ -146,19 +152,16 @@ async def analyze_audio(
 
     temp_path = None
     try:
-        # Write to temporary file with explicit cleanup in finally block
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             tmp.write(contents)
             temp_path = tmp.name
 
-        # Read audio & duration
         audio, sr = sf.read(temp_path, dtype="float32")
         duration_seconds = float(len(audio) / sr)
 
         # Estimate audio quality & SNR
         quality_label, snr_db = estimate_quality(audio, sr)
 
-        # Classify caller phone number if provided, else use known_caller boolean fallback
         if caller_number and caller_number.strip():
             caller_class = classify_caller(caller_number.strip())
         else:
@@ -169,27 +172,25 @@ async def analyze_audio(
                 "reason": "Derived from boolean flag",
             }
 
-        # Convert to mono if multi-channel
         if audio.ndim > 1:
             audio = audio.mean(axis=1)
 
-        # Resample to 16kHz for AASIST-L
         if sr != 16000:
             audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
 
-        # Compute AASIST-L score
         score = detector.score_batch([audio], [16000])[0]
 
-        # Classify result with duration safety check
-        voice_result = classify_with_duration_check(
+        # Classify result with duration check and dynamic quality margin widening
+        voice_result = classify_with_quality_and_duration(
             score,
             RECOMMENDED_THRESHOLD,
             duration_seconds=duration_seconds,
+            audio_quality_label=quality_label,
             min_duration=MIN_DURATION,
             margin=MARGIN,
+            moderate_margin=MODERATE_MARGIN,
         )
 
-        # Compute speaker similarity if claimed_identity is provided and enrolled
         speaker_similarity = None
         if claimed_identity and claimed_identity.strip() in ENROLLED_SPEAKERS:
             ref_emb = ENROLLED_SPEAKERS[claimed_identity.strip()]
@@ -199,7 +200,6 @@ async def analyze_audio(
             )
             speaker_similarity = round(float(sim.item()), 4)
 
-        # Multi-factor Risk Fusion Computation
         risk_fusion = compute_risk(
             voice_score=score,
             speaker_similarity=speaker_similarity,
@@ -212,7 +212,12 @@ async def analyze_audio(
             min_duration=MIN_DURATION,
         )
 
-        # Map risk tier to policy action
+        # Override risk tier if dynamic margin classified voice as INCONCLUSIVE
+        if voice_result.startswith("INCONCLUSIVE") and risk_fusion["tier"] != "INCONCLUSIVE":
+            risk_fusion["tier"] = "INCONCLUSIVE"
+            risk_fusion["score"] = None
+            risk_fusion["reason"] = f"Voice classification inconclusive: {voice_result}"
+
         rec_action = get_recommended_action(risk_fusion["tier"])
 
         return {
@@ -235,7 +240,45 @@ async def analyze_audio(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error analyzing audio: {e}")
     finally:
-        # Privacy & Disk Hygiene: Immediately delete temporary file
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+# --- Challenge Engine Endpoints ---
+
+@app.post("/challenge/generate")
+def api_generate_challenge():
+    """Generates a random active challenge phrase for user verification."""
+    return generate_challenge()
+
+
+@app.post("/challenge/verify")
+async def api_verify_challenge(
+    challenge_id: str = Form(...), file: UploadFile = File(...)
+):
+    """Verifies user spoken response against expected challenge phrase using Whisper STT."""
+    clean_cid = challenge_id.strip()
+    if clean_cid not in ACTIVE_CHALLENGES:
+        raise HTTPException(status_code=404, detail=f"Invalid or expired challenge_id: '{clean_cid}'.")
+
+    expected_phrase = ACTIVE_CHALLENGES[clean_cid]
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty audio file provided.")
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(contents)
+            temp_path = tmp.name
+
+        result = verify_challenge_response(temp_path, expected_phrase)
+        result["challenge_id"] = clean_cid
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to verify challenge response: {e}")
+    finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
