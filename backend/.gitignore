@@ -1,0 +1,5 @@
+.env
+.encryption_key
+data/*.db
+*.db
+__pycache__/

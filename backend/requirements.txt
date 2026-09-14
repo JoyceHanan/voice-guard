@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+torch
+torchaudio
+soundfile
+librosa
+gtts
+openai-whisper
+speechbrain
+requests
+cryptography
+websockets

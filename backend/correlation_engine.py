@@ -1,58 +1,53 @@
-"""VoiceGuard Correlation Engine (Demo-Scale Simulation).
+"""VoiceGuard Correlation Engine (SQLite Backend).
 
 Monitors flagged high-risk calls and detects coordinated impersonation campaigns
-by checking for multi-signal cluster alignment (caller prefix, voice score, transaction amount).
+by checking for multi-signal cluster alignment (caller prefix hash, voice score, transaction amount).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
-
-# In-memory store for flagged calls (risk_tier in ["HIGH", "CRITICAL"])
-RECENT_FLAGGED_CALLS = []
+from storage import log_flagged_call_db, get_all_flagged_calls_db
 
 
 def log_flagged_call(call_data: dict) -> None:
-    """Appends a flagged call entry to the in-memory correlation log."""
+    """Appends a flagged call entry to the SQLite database if risk_tier is HIGH or CRITICAL."""
     tier = (call_data.get("risk_tier") or "").upper()
     if tier in ["HIGH", "CRITICAL"]:
         entry = {
             "caller_number": str(call_data.get("caller_number") or "").strip(),
-            "voice_score": float(call_data.get("score") or 0.0),
+            "voice_score": float(call_data.get("score", call_data.get("voice_score", 0.0))),
             "risk_tier": tier,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "transaction_amount": float(call_data.get("transaction_amount") or 0.0),
         }
-        RECENT_FLAGGED_CALLS.append(entry)
+        log_flagged_call_db(entry)
 
 
 def check_correlation() -> dict[str, Any]:
-    """Scans flagged call history for coordinated campaign patterns (>=3 calls matching >=2 signals)."""
-    if len(RECENT_FLAGGED_CALLS) < 3:
+    """Scans SQLite flagged call history for coordinated campaign patterns (>=3 calls matching >=2 signals)."""
+    calls = get_all_flagged_calls_db()
+
+    if len(calls) < 3:
         return {
             "alert": False,
-            "total_flagged_calls": len(RECENT_FLAGGED_CALLS),
+            "total_flagged_calls": len(calls),
             "message": "Insufficient flagged call history for correlation analysis (minimum 3 required).",
         }
-
-    # Group calls by caller number prefix (first 5 chars, e.g. "+19998")
-    def get_prefix(num: str) -> str:
-        clean = num.replace(" ", "")
-        return clean[:5] if len(clean) >= 5 else clean
 
     matched_calls = []
     signals_matched = set()
 
-    # Iterate over all triples/groups of flagged calls
-    n = len(RECENT_FLAGGED_CALLS)
+    # Iterate over all triples of flagged calls
+    n = len(calls)
     for i in range(n):
         for j in range(i + 1, n):
             for k in range(j + 1, n):
-                c1, c2, c3 = RECENT_FLAGGED_CALLS[i], RECENT_FLAGGED_CALLS[j], RECENT_FLAGGED_CALLS[k]
+                c1, c2, c3 = calls[i], calls[j], calls[k]
                 alignments = 0
                 local_signals = []
 
-                # Signal 1: Caller Prefix Match (first 5 digits match across all 3)
-                p1, p2, p3 = get_prefix(c1["caller_number"]), get_prefix(c2["caller_number"]), get_prefix(c3["caller_number"])
+                # Signal 1: Caller Prefix Hash Match (first 5 digits hash match)
+                p1, p2, p3 = c1.get("prefix_hash"), c2.get("prefix_hash"), c3.get("prefix_hash")
                 if p1 and p1 == p2 == p3:
                     alignments += 1
                     local_signals.append("caller_prefix_match")
@@ -89,6 +84,6 @@ def check_correlation() -> dict[str, Any]:
 
     return {
         "alert": False,
-        "total_flagged_calls": len(RECENT_FLAGGED_CALLS),
+        "total_flagged_calls": len(calls),
         "message": "No correlation cluster detected.",
     }

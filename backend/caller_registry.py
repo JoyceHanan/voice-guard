@@ -1,24 +1,9 @@
-"""VoiceGuard Caller Registry & Intelligence Module.
+"""VoiceGuard Caller Registry & Intelligence Module (SQLite Backend).
 
-Maintains in-memory directory of known trusted contacts and blocklisted fraud numbers.
-Categorizes caller phone numbers into:
-- "known": Registered trusted contact
-- "unknown_flagged": Matches known fraud/blocklist entry
-- "unknown_neutral": Unregistered number with no negative intelligence
+Queries persistent SQLite storage for known trusted contacts and blocklisted fraud numbers.
 """
 
-# Seeded known contacts dictionary: { phone_number: name }
-KNOWN_CONTACTS = {
-    "+911234567890": "Rajesh Kumar (CFO)",
-    "+15550192834": "Alice Smith (Treasurer)",
-    "+442079460912": "David Miller (Director)",
-}
-
-# Seeded fraud blocklist set/list
-BLOCKLIST = [
-    "+19998887777",
-    "+919999999999",
-]
+from storage import get_known_contact, is_blocklisted, add_to_blocklist_db, add_known_contact
 
 
 def classify_caller(phone_number: str) -> dict:
@@ -35,18 +20,22 @@ def classify_caller(phone_number: str) -> dict:
     if not clean_num:
         return {"category": "unknown_neutral", "name": None, "reason": "No caller number provided"}
 
-    if clean_num in KNOWN_CONTACTS:
+    # Check SQLite known_contacts
+    known_info = get_known_contact(clean_num)
+    if known_info:
         return {
             "category": "known",
-            "name": KNOWN_CONTACTS[clean_num],
-            "reason": "Registered trusted contact",
+            "name": known_info["name"],
+            "reason": known_info["reason"],
         }
 
-    if clean_num in BLOCKLIST:
+    # Check SQLite blocklist
+    block_info = is_blocklisted(clean_num)
+    if block_info:
         return {
             "category": "unknown_flagged",
             "name": None,
-            "reason": "Matches known fraud pattern / blocklist entry",
+            "reason": block_info["reason"],
         }
 
     return {
@@ -56,10 +45,10 @@ def classify_caller(phone_number: str) -> dict:
     }
 
 
-def add_to_blocklist(phone_number: str) -> bool:
-    """Appends a phone number to the fraud blocklist."""
+def add_to_blocklist(phone_number: str, reason: str = "Matches known fraud pattern / blocklist entry") -> bool:
+    """Appends a phone number to the fraud blocklist in SQLite."""
     clean_num = (phone_number or "").strip()
-    if clean_num and clean_num not in BLOCKLIST:
-        BLOCKLIST.append(clean_num)
+    if clean_num:
+        add_to_blocklist_db(clean_num, reason=reason)
         return True
     return False
