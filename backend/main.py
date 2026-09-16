@@ -283,7 +283,10 @@ async def ws_analyze_stream(
     urgency: bool = False,
     transaction_amount: float = 0.0,
 ):
-    """Continuous WebSocket audio streaming endpoint using a sliding 4s window (2s update hop)."""
+    """Continuous WebSocket audio streaming endpoint using a sliding 4s window (1s update hop).
+    
+    Note: This is near-real-time via a 1-second sliding window hop over 4-second analysis windows — not continuous frame-by-frame streaming.
+    """
     await websocket.accept()
 
     req_key = api_key or websocket.headers.get("x-api-key")
@@ -297,8 +300,12 @@ async def ws_analyze_stream(
 
     audio_buffer = np.array([], dtype=np.float32)
     sample_rate = 16000
-    target_samples = int(4.0 * sample_rate)  # 64,000 samples = 4.0s
-    hop_samples = int(2.0 * sample_rate)     # 32,000 samples = 2.0s sliding window
+    target_samples = int(4.0 * sample_rate)  # 64,000 samples = 4.0s minimum requirement
+    hop_samples = int(1.0 * sample_rate)     # 16,000 samples = 1.0s sliding window hop
+
+    # Exponential Moving Average (EMA) temporal smoothing state
+    alpha = 0.4
+    prev_smoothed_score = None
 
     try:
         while True:
@@ -325,10 +332,18 @@ async def ws_analyze_stream(
                 duration_sec = 4.0
 
                 quality_label, snr_db = estimate_quality(window, sample_rate)
-                score = float(detector.score_batch([window], [sample_rate])[0])
+                raw_score = float(detector.score_batch([window], [sample_rate])[0])
 
+                # Apply Temporal Smoothing (EMA) to reduce score drift/noise across overlapping windows
+                if prev_smoothed_score is None:
+                    smoothed_score = raw_score
+                else:
+                    smoothed_score = alpha * raw_score + (1.0 - alpha) * prev_smoothed_score
+                prev_smoothed_score = smoothed_score
+
+                # Use smoothed score for classification and risk tier decisions
                 voice_res = classify_with_quality_and_duration(
-                    score,
+                    smoothed_score,
                     RECOMMENDED_THRESHOLD,
                     duration_seconds=duration_sec,
                     audio_quality_label=quality_label,
@@ -360,7 +375,7 @@ async def ws_analyze_stream(
                 }
 
                 risk_fusion = compute_risk(
-                    voice_score=score,
+                    voice_score=smoothed_score,
                     speaker_similarity=speaker_sim,
                     audio_quality_label=quality_label,
                     duration_seconds=duration_sec,
@@ -376,7 +391,9 @@ async def ws_analyze_stream(
                 response_payload = {
                     "status": "evaluated",
                     "window_duration": duration_sec,
-                    "score": round(score, 2),
+                    "raw_score": round(raw_score, 2),
+                    "smoothed_score": round(smoothed_score, 2),
+                    "score": round(smoothed_score, 2),
                     "voice_result": voice_res,
                     "speaker_similarity": speaker_sim,
                     "audio_quality": {"label": quality_label, "snr_db": snr_db},
@@ -386,7 +403,7 @@ async def ws_analyze_stream(
                 }
                 await websocket.send_json(response_payload)
 
-                # Slide window: keep last 2s (32,000 samples)
+                # Slide window: keep last 3.0s (48,000 samples) by hopping 1.0s (16,000 samples)
                 audio_buffer = audio_buffer[hop_samples:]
             else:
                 curr_dur = round(len(audio_buffer) / sample_rate, 2)

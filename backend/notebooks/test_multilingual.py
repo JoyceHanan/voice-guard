@@ -1,7 +1,7 @@
 """Cross-Lingual Generalization Test Script for VoiceGuard Anti-Spoofing Pipeline.
 
 Evaluates the existing English-trained AASIST-L model (validated threshold = 2.10)
-on multilingual synthetic (gTTS Hindi/Telugu) and real audio samples without retraining.
+on multilingual synthetic (gTTS Hindi/Telugu) and real human audio samples without retraining.
 """
 
 import glob
@@ -57,9 +57,9 @@ def detect_language(filename: str) -> str:
 
 
 def main():
-    print("=" * 85)
+    print("=" * 90)
     print("VoiceGuard Cross-Lingual Generalization Benchmark (AASIST-L)")
-    print("=" * 85)
+    print("=" * 90)
     print(f"Validated Decision Threshold: {VALIDATED_THRESHOLD:.2f}")
     print(f"Baseline English Holdout Accuracy: {HOLDOUT_ACCURACY:.2f}%\n")
 
@@ -83,11 +83,13 @@ def main():
         return
 
     print(f"Found {len(fake_files)} synthetic (FAKE) samples and {len(real_files)} genuine (REAL) samples.\n")
-    print(f"{'Filename':<25} {'Language':<10} {'True Label':<10} {'Score':>8} {'Predicted':<12} {'Match?':<8}")
-    print("-" * 85)
+    print(f"{'Filename':<30} {'Language':<10} {'True Label':<10} {'Score':>8} {'Predicted':<12} {'Match?':<8}")
+    print("-" * 90)
 
-    correct_count = 0
-    total_evaluable = 0
+    fake_correct = 0
+    fake_total = 0
+    real_correct = 0
+    real_total = 0
 
     for filepath, true_label in all_samples:
         fname = os.path.basename(filepath)
@@ -100,40 +102,56 @@ def main():
 
         # Check correctness
         is_correct = False
-        if true_label == "FAKE" and pred_label == "FAKE":
-            is_correct = True
-        elif true_label == "REAL" and pred_label == "REAL":
-            is_correct = True
+        if true_label == "FAKE":
+            fake_total += 1
+            if pred_label == "FAKE":
+                is_correct = True
+                fake_correct += 1
+        elif true_label == "REAL":
+            real_total += 1
+            if pred_label == "REAL":
+                is_correct = True
+                real_correct += 1
 
-        if is_correct:
-            correct_count += 1
-            match_str = "YES"
-        else:
-            match_str = "NO"
+        match_str = "YES" if is_correct else "NO"
+        print(f"{fname:<30} {lang:<10} {true_label:<10} {score:>8.4f} {pred_label:<12} {match_str:<8}")
 
-        total_evaluable += 1
+    total_samples = fake_total + real_total
+    total_correct = fake_correct + real_correct
 
-        print(f"{fname:<25} {lang:<10} {true_label:<10} {score:>8.4f} {pred_label:<12} {match_str:<8}")
+    fake_acc = (fake_correct / fake_total * 100.0) if fake_total > 0 else 0.0
+    real_acc = (real_correct / real_total * 100.0) if real_total > 0 else 0.0
+    combined_acc = (total_correct / total_samples * 100.0) if total_samples > 0 else 0.0
 
-    multilingual_accuracy = (correct_count / total_evaluable * 100.0) if total_evaluable > 0 else 0.0
+    diff = combined_acc - HOLDOUT_ACCURACY
 
-    print("-" * 85)
-    print("\nCROSS-LINGUAL SUMMARY & COMPARISON:")
-    print(f"- Total Multilingual Samples Tested: {total_evaluable}")
-    print(f"- Correct Predictions: {correct_count} / {total_evaluable}")
-    print(f"- Multilingual Dataset Accuracy: {multilingual_accuracy:.2f}%")
-    print(f"- Baseline English Holdout Accuracy: {HOLDOUT_ACCURACY:.2f}%")
-    diff = multilingual_accuracy - HOLDOUT_ACCURACY
-    print(f"- Accuracy Delta: {diff:+.2f}%")
+    print("-" * 90)
+    print("\nCROSS-LINGUAL BENCHMARK RESULTS SUMMARY:")
+    print(f"a) Synthetic (FAKE) Multilingual Accuracy : {fake_acc:.2f}% ({fake_correct}/{fake_total})")
+    print(f"b) Genuine (REAL) Multilingual Accuracy   : {real_acc:.2f}% ({real_correct}/{real_total})")
+    print(f"c) Combined Overall Multilingual Accuracy : {combined_acc:.2f}% ({total_correct}/{total_samples})")
+    print(f"d) Baseline English Holdout Accuracy      : {HOLDOUT_ACCURACY:.2f}%")
+    print(f"e) Combined Accuracy Delta vs. English    : {diff:+.2f}%")
 
-    if multilingual_accuracy < HOLDOUT_ACCURACY:
-        print("\n[OBSERVATION]: Accuracy on non-English audio is lower than the English baseline.")
-        print("This indicates that phonetic, acoustic, or prosodic shifts in non-English speech can affect")
-        print("the model's confidence boundary when using an English-trained detector without fine-tuning.")
-    elif multilingual_accuracy == 100.0:
-        print("\n[OBSERVATION]: 100% accuracy achieved on current synthetic multilingual sample set.")
-        print("Note: All tested samples were gTTS synthetic clips. Performance on real non-English speech")
-        print("needs verification once genuine user recordings are added to data/multilingual/real/.")
+    print("\nCOMPARATIVE ACCURACY ASSESSMENT:")
+    if abs(diff) <= 3.0:
+        assessment = "COMPARABLE to original English holdout performance."
+    elif diff < -15.0:
+        assessment = "SIGNIFICANTLY LOWER than original English holdout performance."
+    elif diff < 0:
+        assessment = "SOMEWHAT LOWER than original English holdout performance."
+    else:
+        assessment = "HIGHER than original English holdout performance."
+
+    print(f"--> Multilingual performance is {assessment}")
+
+    if real_acc < 80.0:
+        print("\n[HONEST FINDING & LIMITATION]:")
+        print("Genuine (REAL) non-English human speech recordings exhibited a significantly lower accuracy")
+        print(f"({real_acc:.2f}%) compared to English speech ({HOLDOUT_ACCURACY:.2f}%). Phonetic, prosodic, and")
+        print("acoustic variations in Hindi and Telugu cause genuine speech logits to fall near or below")
+        print("the English decision boundary (2.10). An English-only trained model does not generalize")
+        print("robustly to real non-English speakers without multilingual fine-tuning (e.g. Wav2Vec2-XLSR).")
 
 
 if __name__ == "__main__":
