@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: light;
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+    background-color: #fdfcfc;
+    color: #201d1d;
+  }
+  body {
+    @apply bg-[#fdfcfc] text-[#201d1d] font-mono selection:bg-[#201d1d] selection:text-[#fdfcfc] antialiased;
+  }
+}
+
+/* OpenCode Minimalist Hairline Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #fdfcfc;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 0, 0, 0.18);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #646262;
+}
