@@ -106,8 +106,37 @@ export default function EvidenceBreakdown({
             [MULTI-FACTOR RISK CONTRIBUTIONS]
           </span>
 
-          {evidenceBreakdown && evidenceBreakdown.length > 0 ? (
-            evidenceBreakdown.map((item, idx) => {
+          {(() => {
+            const items = Array.isArray(evidenceBreakdown)
+              ? evidenceBreakdown
+              : typeof evidenceBreakdown === 'object' && evidenceBreakdown !== null
+              ? Object.entries(evidenceBreakdown).map(([key, val]) => {
+                  let name = key.replace(/_/g, ' ').toUpperCase();
+                  if (key === 'voice_spoof_risk') name = 'AASIST-L Voice Spoof Signal';
+                  else if (key === 'speaker_mismatch_risk') name = 'Biometric Speaker Match';
+                  else if (key === 'transaction_context_risk') name = 'Transaction & Call Context';
+
+                  const weight = val.weighted_contribution !== undefined ? val.weighted_contribution : val.contribution || val.weight || 0;
+                  let details = val.status || '';
+                  if (key === 'voice_spoof_risk' && val.raw_score !== undefined) {
+                    details = `Raw logit: ${val.raw_score} (Norm risk: ${val.normalized_risk_score}%)`;
+                  } else if (key === 'transaction_context_risk' && val.caller_category) {
+                    details = `Category: ${val.caller_category}, Beneficiary: ${val.new_beneficiary ? 'NEW' : 'VERIFIED'}, Urgency: ${val.urgency ? 'HIGH' : 'NORMAL'}`;
+                  }
+
+                  return { factor: name, contribution: weight, details: details };
+                })
+              : [];
+
+            if (items.length === 0) {
+              return (
+                <div className="bg-[#f8f7f7] p-4 rounded-none border border-[rgba(15,0,0,0.12)] text-center text-xs text-[#646262] italic font-mono">
+                  [NO BREAKDOWN ANALYSIS AVAILABLE — UPLOAD AUDIO OR START LIVE STREAM]
+                </div>
+              );
+            }
+
+            return items.map((item, idx) => {
               const factorName = item.factor || item.name || `Factor ${idx + 1}`;
               const weight = item.contribution !== undefined ? item.contribution : item.weight || item.score || 0;
               const details = item.details || item.description || '';
@@ -145,12 +174,8 @@ export default function EvidenceBreakdown({
                   {details && <p className="text-[11px] text-[#646262] mt-1 font-mono">{details}</p>}
                 </div>
               );
-            })
-          ) : (
-            <div className="bg-[#f8f7f7] p-4 rounded-none border border-[rgba(15,0,0,0.12)] text-center text-xs text-[#646262] italic font-mono">
-              [NO BREAKDOWN ANALYSIS AVAILABLE — UPLOAD AUDIO OR START LIVE STREAM]
-            </div>
-          )}
+            });
+          })()}
         </div>
       </div>
 

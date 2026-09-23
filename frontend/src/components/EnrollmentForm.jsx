@@ -107,21 +107,22 @@ export default function EnrollmentForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!speakerId.trim()) {
-      setError('Please provide a speaker name or ID.');
+    setError(null);
+    setMessage(null);
+
+    if (!speakerId || !speakerId.trim()) {
+      setError('Speaker name is required. Please enter a valid speaker name or ID.');
       return;
     }
 
     const audioToUpload = file || (recordedBlob ? new File([recordedBlob], 'enrollment_mic.wav', { type: 'audio/wav' }) : null);
 
     if (!audioToUpload) {
-      setError('Please upload an audio file or record a voice sample.');
+      setError('Reference audio sample is required. Please upload an audio file or record a sample.');
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setMessage(null);
 
     const formData = new FormData();
     formData.append('speaker_id', speakerId.trim());
@@ -191,7 +192,6 @@ export default function EnrollmentForm() {
                 onChange={(e) => setSpeakerId(e.target.value)}
                 placeholder="e.g. CEO - Jane Doe or CustID-99412"
                 className="w-full bg-[#f8f7f7] border border-[rgba(15,0,0,0.12)] rounded-[4px] px-3.5 py-2 text-xs text-[#201d1d] placeholder-[#9a9898] focus:outline-none focus:border-[#201d1d] font-mono transition-colors"
-                required
               />
             </div>
 
@@ -275,9 +275,9 @@ export default function EnrollmentForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || (!file && !recordedBlob) || !speakerId.trim()}
+              disabled={loading}
               className={`w-full py-2.5 px-4 rounded-[4px] font-bold text-xs font-mono transition-all flex items-center justify-center space-x-2 ${
-                loading || (!file && !recordedBlob) || !speakerId.trim()
+                loading
                   ? 'bg-[#f1eeee] text-[#9a9898] border border-[rgba(15,0,0,0.12)] cursor-not-allowed'
                   : 'bg-[#201d1d] hover:bg-[#0f0000] text-[#fdfcfc]'
               }`}

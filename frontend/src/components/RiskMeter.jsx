@@ -1,8 +1,11 @@
 import React from 'react';
 import { AlertOctagon, ShieldCheck, ShieldAlert, AlertTriangle, HelpCircle } from 'lucide-react';
 
-export default function RiskMeter({ riskScore = 0, riskTier = 'LOW', rawScore = null, riskReason = null }) {
-  const normTier = (riskTier || 'LOW').toUpperCase();
+export default function RiskMeter({ riskScore = null, riskTier = null, rawScore = null, riskReason = null }) {
+  const isEvaluated = riskScore !== null && riskScore !== undefined;
+  const numericScore = isEvaluated ? Number(riskScore) : 0;
+  const safeScore = isNaN(numericScore) ? 0 : Math.min(100, Math.max(0, numericScore));
+  const normTier = isEvaluated ? (riskTier || 'LOW').toUpperCase() : 'AWAITING';
 
   // Tier configuration dictionary (OpenCode AI Apple-style HIG semantic colors)
   const TIER_CONFIG = {
@@ -36,9 +39,15 @@ export default function RiskMeter({ riskScore = 0, riskTier = 'LOW', rawScore = 
       icon: HelpCircle,
       description: 'Insufficient audio duration or degraded signal quality.',
     },
+    AWAITING: {
+      color: '#646262', // Mute Stone
+      badgeClass: 'bg-[#f8f7f7] text-[#646262] border border-[rgba(15,0,0,0.12)]',
+      icon: HelpCircle,
+      description: 'Upload an audio file or start live streaming to calculate real-time fraud risk.',
+    },
   };
 
-  const config = TIER_CONFIG[normTier] || TIER_CONFIG.INCONCLUSIVE;
+  const config = TIER_CONFIG[normTier] || TIER_CONFIG.AWAITING;
   const TierIcon = config.icon;
 
   // SVG Arc Calculation (270 degree arc)
@@ -47,12 +56,12 @@ export default function RiskMeter({ riskScore = 0, riskTier = 'LOW', rawScore = 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const arcLength = circumference * 0.75;
-  const safeScore = Math.min(100, Math.max(0, riskScore));
-  const dashoffset = arcLength - (safeScore / 100) * arcLength;
+  const displayScore = isEvaluated ? Math.round(safeScore) : 0;
+  const dashoffset = isEvaluated ? arcLength - (safeScore / 100) * arcLength : arcLength;
 
   // ASCII Progress Bar generator
   const totalBlocks = 20;
-  const filledBlocks = Math.round((safeScore / 100) * totalBlocks);
+  const filledBlocks = isEvaluated ? Math.round((safeScore / 100) * totalBlocks) : 0;
   const asciiBar = '█'.repeat(filledBlocks) + '░'.repeat(totalBlocks - filledBlocks);
 
   return (
@@ -99,23 +108,25 @@ export default function RiskMeter({ riskScore = 0, riskTier = 'LOW', rawScore = 
         {/* Inner Score Display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="text-4xl font-extrabold font-mono text-[#201d1d]">
-            {Math.round(safeScore)}
+            {isEvaluated ? displayScore : '--'}
           </span>
-          <span className="text-[10px] font-mono text-[#646262] uppercase tracking-wider mt-0.5">[SCORE / 100]</span>
+          <span className="text-[10px] font-mono text-[#646262] uppercase tracking-wider mt-0.5">
+            {isEvaluated ? '[SCORE / 100]' : '[AWAITING ANALYSIS]'}
+          </span>
         </div>
       </div>
 
       {/* ASCII Terminal Bar Readout */}
       <div className="my-2 bg-[#f8f7f7] border border-[rgba(15,0,0,0.12)] px-3 py-1.5 rounded-[4px] text-xs text-[#646262] font-mono">
         <span style={{ color: config.color }}>[{asciiBar}]</span>
-        <span className="ml-2 text-[#201d1d] font-bold">{Math.round(safeScore)}%</span>
+        <span className="ml-2 text-[#201d1d] font-bold">{isEvaluated ? `${displayScore}%` : 'READY'}</span>
       </div>
 
       {/* Risk Tier Bracketed Badge */}
       <div className="mt-3 w-full flex flex-col items-center gap-2">
         <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] border text-xs font-mono font-bold tracking-wider uppercase transition-all duration-300 ${config.badgeClass}`}>
           <TierIcon className="w-3.5 h-3.5" />
-          <span>[{normTier} RISK TIER]</span>
+          <span>[{isEvaluated ? `${normTier} RISK TIER` : 'AWAITING ANALYSIS'}]</span>
         </div>
         <p className="text-xs text-[#424245] max-w-xs leading-relaxed mt-1 font-mono">
           {riskReason || config.description}

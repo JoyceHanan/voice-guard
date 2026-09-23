@@ -54,7 +54,7 @@ export default function CallerPanel({ callerNumber, claimedIdentity, callerClass
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-[#646262] uppercase tracking-wider font-bold">[CALLER IDENTIFIER]</span>
               <span className="font-mono text-sm font-bold text-[#201d1d]">
-                {callerNumber || '+1 (555) 019-2834'}
+                {callerNumber || 'Unspecified Number'}
               </span>
             </div>
             <p className="text-xs text-[#646262] mt-0.5">

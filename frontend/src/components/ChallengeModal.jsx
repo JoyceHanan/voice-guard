@@ -121,7 +121,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-[#201d1d]/60 backdrop-blur-sm z-50 animate-fadeIn" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#fdfcfc] border border-[rgba(15,0,0,0.12)] rounded-[4px] p-6 shadow-none z-50 text-[#201d1d] font-mono">

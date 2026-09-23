@@ -25,11 +25,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'enrollment'
 
   // Context & Call State
-  const [callerNumber, setCallerNumber] = useState('+1 (555) 019-2834');
+  const [callerNumber, setCallerNumber] = useState('');
   const [claimedIdentity, setClaimedIdentity] = useState('');
   const [newBeneficiary, setNewBeneficiary] = useState(false);
   const [urgency, setUrgency] = useState(false);
-  const [transactionAmount, setTransactionAmount] = useState('50000');
+  const [transactionAmount, setTransactionAmount] = useState('');
 
   // Enrolled speakers list (for identity picker)
   const [enrolledList, setEnrolledList] = useState([]);
