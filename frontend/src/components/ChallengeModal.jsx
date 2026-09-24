@@ -132,7 +132,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
               </div>
               <div>
                 <Dialog.Title className="text-sm font-bold text-[#201d1d] tracking-wider">
-                  [CHALLENGE VERIFICATION PROTOCOL]
+                  CHALLENGE VERIFICATION PROTOCOL
                 </Dialog.Title>
                 <Dialog.Description className="text-xs text-[#646262]">
                   Interactive phrase challenge to verify live caller authenticity.
@@ -149,7 +149,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
           {/* Generated Challenge Phrase Display */}
           <div className="bg-[#f8f7f7] p-4 rounded-none border border-[rgba(15,0,0,0.12)] mb-5 text-center">
             <span className="text-[11px] font-semibold text-[#646262] uppercase tracking-wider block mb-1">
-              [INSTRUCT CALLER TO SPEAK THIS PHRASE]:
+              INSTRUCT CALLER TO SPEAK THIS PHRASE:
             </span>
             {generating ? (
               <div className="flex items-center justify-center gap-2 py-3 text-[#30d158] text-sm">
@@ -173,13 +173,13 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
               className="mt-2 text-xs text-[#30d158] hover:underline inline-flex items-center gap-1 font-mono transition-colors"
             >
               <RefreshCw className="w-3 h-3" />
-              <span>[GENERATE DIFFERENT PHRASE]</span>
+              <span>GENERATE DIFFERENT PHRASE</span>
             </button>
           </div>
 
           {/* Response Audio Input Controls */}
           <div className="space-y-3 mb-5">
-            <span className="text-xs font-bold text-[#201d1d] block">[CAPTURE CALLER RESPONSE AUDIO]:</span>
+            <span className="text-xs font-bold text-[#201d1d] block">CAPTURE CALLER RESPONSE AUDIO:</span>
 
             <div className="grid grid-cols-2 gap-3">
               {/* Record Microphone */}
@@ -194,12 +194,12 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
                 {isRecording ? (
                   <>
                     <Square className="w-4 h-4 fill-current text-[#ff3b30]" />
-                    <span>[STOP RECORDING]</span>
+                    <span>STOP RECORDING</span>
                   </>
                 ) : (
                   <>
                     <Mic className="w-4 h-4 text-[#30d158]" />
-                    <span>{audioBlob ? '[RE-RECORD MIC]' : '[RECORD MIC]'}</span>
+                    <span>{audioBlob ? 'RE-RECORD MIC' : 'RECORD MIC'}</span>
                   </>
                 )}
               </button>
@@ -207,7 +207,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
               {/* Upload Audio File */}
               <label className="flex items-center justify-center gap-2 p-3 rounded-[4px] bg-[#f8f7f7] border border-[rgba(15,0,0,0.12)] hover:border-[#646262] text-[#201d1d] text-xs font-mono font-bold cursor-pointer transition-all">
                 <Upload className="w-4 h-4 text-[#30d158]" />
-                <span className="truncate">{audioFile ? audioFile.name : '[UPLOAD FILE]'}</span>
+                <span className="truncate">{audioFile ? audioFile.name : 'UPLOAD FILE'}</span>
                 <input
                   type="file"
                   accept="audio/*"
@@ -228,7 +228,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
                   READY: {audioFile ? audioFile.name : 'RECORDED MIC AUDIO (.WAV)'}
                 </span>
                 <span className="text-[10px] text-[#30d158] font-bold uppercase px-2 py-0.5 rounded-[4px] bg-[#30d158]/10 border border-[#30d158]/30">
-                  [CAPTURED]
+                  CAPTURED
                 </span>
               </div>
             )}
@@ -245,12 +245,12 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
                 {verifyResult.matched ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-[#30d158]" />
-                    <span>[✓ VERIFICATION MATCHED — CALLER AUTHENTICATED]</span>
+                    <span>✓ VERIFICATION MATCHED — CALLER AUTHENTICATED</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-4 h-4 text-[#ff3b30]" />
-                    <span>[✗ VERIFICATION FAILED — PHRASE MISMATCH]</span>
+                    <span>✗ VERIFICATION FAILED — PHRASE MISMATCH</span>
                   </>
                 )}
               </div>
@@ -279,7 +279,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
               onClick={onClose}
               className="px-4 py-2 rounded-[4px] bg-[#f8f7f7] hover:bg-[#f1eeee] border border-[rgba(15,0,0,0.12)] text-[#646262] hover:text-[#201d1d] text-xs font-mono transition-colors"
             >
-              [CLOSE PROTOCOL]
+              CLOSE PROTOCOL
             </button>
 
             <button
@@ -295,7 +295,7 @@ export default function ChallengeModal({ isOpen, onClose, claimedIdentity }) {
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>[-&gt;] VERIFY CHALLENGE RESPONSE</span>
+                  <span>VERIFY CHALLENGE RESPONSE</span>
                 </>
               )}
             </button>

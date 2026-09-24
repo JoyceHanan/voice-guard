@@ -164,7 +164,7 @@ export default function EnrollmentForm() {
             <UserPlus className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[#201d1d] tracking-wider">[SPEAKER VOICE ENROLLMENT PROTOCOL]</h2>
+            <h2 className="text-base font-bold text-[#201d1d] tracking-wider">SPEAKER VOICE ENROLLMENT PROTOCOL</h2>
             <p className="text-xs text-[#646262] mt-0.5">
               Register verified voiceprints to enable automatic biometric identity verification & ECAPA-TDNN match scoring.
             </p>
@@ -177,7 +177,7 @@ export default function EnrollmentForm() {
         <div className="lg:col-span-7 bg-[#fdfcfc] border border-[rgba(15,0,0,0.12)] rounded-none p-5 md:p-6">
           <h3 className="text-xs font-bold text-[#646262] uppercase tracking-wider mb-4 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#30d158]" />
-            <span>[NEW SPEAKER REGISTRATION]</span>
+            <span>NEW SPEAKER REGISTRATION</span>
           </h3>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -219,7 +219,7 @@ export default function EnrollmentForm() {
                     {isRecording ? <Square className="w-4 h-4 fill-current text-[#ff3b30]" /> : <Mic className="w-4 h-4" />}
                   </div>
                   <span className="text-xs font-semibold">
-                    {isRecording ? `[RECORDING... ${recordTime}s]` : recordedBlob ? '[AUDIO CAPTURED ✓]' : '[RECORD MIC]'}
+                    {isRecording ? `RECORDING... ${recordTime}s` : recordedBlob ? 'AUDIO CAPTURED ✓' : 'RECORD MIC'}
                   </span>
                   <span className="text-[11px] text-[#646262] mt-0.5">
                     {isRecording ? 'Click to finish' : 'Click to record sample'}
@@ -240,7 +240,7 @@ export default function EnrollmentForm() {
                     <Upload className="w-4 h-4" />
                   </div>
                   <span className="text-xs font-semibold truncate max-w-[140px]">
-                    {file ? `[${file.name}]` : '[UPLOAD FILE]'}
+                    {file ? file.name : 'UPLOAD FILE'}
                   </span>
                   <span className="text-[11px] text-[#646262] mt-0.5">.wav, .mp3, .flac</span>
                 </label>
@@ -261,14 +261,14 @@ export default function EnrollmentForm() {
             {error && (
               <div className="flex items-center space-x-2 text-xs text-[#ff3b30] bg-[#ff3b30]/10 border border-[#ff3b30]/30 rounded-none p-3 font-mono">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>[{error}]</span>
+                <span>{error}</span>
               </div>
             )}
 
             {message && (
               <div className="flex items-center space-x-2 text-xs text-[#30d158] bg-[#30d158]/10 border border-[#30d158]/30 rounded-none p-3 font-mono">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>[{message}]</span>
+                <span>{message}</span>
               </div>
             )}
 
@@ -285,12 +285,12 @@ export default function EnrollmentForm() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-[#007aff]" />
-                  <span>[EXTRACTING EMBEDDINGS & ENROLLING...]</span>
+                  <span>EXTRACTING EMBEDDINGS & ENROLLING...</span>
                 </>
               ) : (
                 <>
                   <UserPlus className="w-4 h-4" />
-                  <span>[-&gt;] ENROLL REFERENCE SPEAKER</span>
+                  <span>ENROLL REFERENCE SPEAKER</span>
                 </>
               )}
             </button>
@@ -302,7 +302,7 @@ export default function EnrollmentForm() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-[#201d1d] uppercase tracking-wider flex items-center gap-2">
               <Users className="w-4 h-4 text-[#30d158]" />
-              <span>[ENROLLED DIRECTORY]</span>
+              <span>ENROLLED DIRECTORY</span>
             </h3>
             <button
               onClick={fetchEnrolledSpeakers}
@@ -323,7 +323,7 @@ export default function EnrollmentForm() {
             ) : enrolledList.length === 0 ? (
               <div className="py-10 text-center border border-dashed border-[rgba(15,0,0,0.12)] rounded-none font-mono">
                 <Volume2 className="w-7 h-7 text-[#646262] mx-auto mb-2 opacity-50" />
-                <p className="text-xs text-[#646262] font-semibold">[NO SPEAKERS ENROLLED YET]</p>
+                <p className="text-xs text-[#646262] font-semibold">NO SPEAKERS ENROLLED YET</p>
                 <p className="text-[11px] text-[#9a9898] mt-0.5">Register a speaker using the form on the left.</p>
               </div>
             ) : (
@@ -342,7 +342,7 @@ export default function EnrollmentForm() {
                     </div>
                   </div>
                   <span className="text-[10px] font-mono uppercase bg-[#30d158]/10 text-[#30d158] border border-[#30d158]/30 px-2 py-0.5 rounded-[4px]">
-                    [ACTIVE]
+                    ACTIVE
                   </span>
                 </div>
               ))

@@ -27,7 +27,7 @@ export default function TransactionForm({
     <div className="bg-[#fdfcfc] border border-[rgba(15,0,0,0.12)] rounded-none p-5 md:p-6 font-mono">
       <h3 className="text-xs font-bold text-[#646262] uppercase tracking-wider mb-4 flex items-center gap-2">
         <DollarSign className="w-4 h-4 text-[#30d158]" />
-        <span>[TRANSACTION CONTEXT & CALL PARAMETERS]</span>
+        <span>TRANSACTION CONTEXT & CALL PARAMETERS</span>
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -99,7 +99,7 @@ export default function TransactionForm({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-[#646262]">{newBeneficiary ? '[ENABLED]' : '[DISABLED]'}</span>
+            <span className="text-[11px] font-mono text-[#646262]">{newBeneficiary ? 'ENABLED' : 'DISABLED'}</span>
             <Switch.Root
               checked={!!newBeneficiary}
               onCheckedChange={(val) => setNewBeneficiary && setNewBeneficiary(val)}
@@ -126,7 +126,7 @@ export default function TransactionForm({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-[#646262]">{urgency ? '[ENABLED]' : '[DISABLED]'}</span>
+            <span className="text-[11px] font-mono text-[#646262]">{urgency ? 'ENABLED' : 'DISABLED'}</span>
             <Switch.Root
               checked={!!urgency}
               onCheckedChange={(val) => setUrgency && setUrgency(val)}

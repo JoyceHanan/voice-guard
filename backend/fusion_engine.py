@@ -11,6 +11,10 @@ from typing import Any, Optional
 RECOMMENDED_THRESHOLD = 2.10
 
 
+# Lowered from 4.0s to 2.0s per explicit product decision on 2026-09-24 — earlier validation showed real-voice scores becoming unreliable below 4s (a real clip's score dropped from +5.66 to +0.47 when trimmed to 2s). This threshold change reintroduces that risk; audio between 2-4s should be treated with reduced confidence.
+DEFAULT_MIN_DURATION = 2.0
+
+
 def compute_risk(
     voice_score: float,
     speaker_similarity: Optional[float],
@@ -20,7 +24,7 @@ def compute_risk(
     caller_category: Optional[str] = None,
     new_beneficiary: bool = False,
     urgency: bool = False,
-    min_duration: float = 4.0,
+    min_duration: float = DEFAULT_MIN_DURATION,
 ) -> dict[str, Any]:
     """Computes composite risk tier, numeric score (0-100), and factor breakdown.
 
@@ -33,7 +37,7 @@ def compute_risk(
         caller_category: "known", "unknown_neutral", or "unknown_flagged".
         new_beneficiary: Boolean flag for new transfer recipient.
         urgency: Boolean flag for high-urgency claim/request.
-        min_duration: Minimum required duration (default: 4.0s).
+        min_duration: Minimum required duration (default: 2.0s).
 
     Returns:
         {

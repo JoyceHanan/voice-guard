@@ -68,7 +68,7 @@ export default function RiskMeter({ riskScore = null, riskTier = null, rawScore 
     <div className="bg-[#fdfcfc] border border-[rgba(15,0,0,0.12)] rounded-none p-5 md:p-6 flex flex-col items-center justify-between text-center font-mono w-full">
       {/* TUI Card Header */}
       <div className="w-full flex items-center justify-between text-xs border-b border-[rgba(15,0,0,0.12)] pb-3 mb-4">
-        <span className="font-bold uppercase tracking-wider text-[#646262] text-[11px]">[REAL-TIME RISK METER]</span>
+        <span className="font-bold uppercase tracking-wider text-[#646262] text-[11px]">REAL-TIME RISK METER</span>
         {rawScore !== null && rawScore !== undefined && (
           <span className="font-mono text-[11px] text-[#646262]" title="Raw AASIST-L logit score">
             LOGIT: <strong className="text-[#201d1d]">{typeof rawScore === 'number' ? rawScore.toFixed(3) : rawScore}</strong>
@@ -111,22 +111,22 @@ export default function RiskMeter({ riskScore = null, riskTier = null, rawScore 
             {isEvaluated ? displayScore : '--'}
           </span>
           <span className="text-[10px] font-mono text-[#646262] uppercase tracking-wider mt-0.5">
-            {isEvaluated ? '[SCORE / 100]' : '[AWAITING ANALYSIS]'}
+            {isEvaluated ? 'SCORE / 100' : 'AWAITING ANALYSIS'}
           </span>
         </div>
       </div>
 
       {/* ASCII Terminal Bar Readout */}
       <div className="my-2 bg-[#f8f7f7] border border-[rgba(15,0,0,0.12)] px-3 py-1.5 rounded-[4px] text-xs text-[#646262] font-mono">
-        <span style={{ color: config.color }}>[{asciiBar}]</span>
+        <span style={{ color: config.color }}>{asciiBar}</span>
         <span className="ml-2 text-[#201d1d] font-bold">{isEvaluated ? `${displayScore}%` : 'READY'}</span>
       </div>
 
-      {/* Risk Tier Bracketed Badge */}
+      {/* Risk Tier Badge */}
       <div className="mt-3 w-full flex flex-col items-center gap-2">
         <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] border text-xs font-mono font-bold tracking-wider uppercase transition-all duration-300 ${config.badgeClass}`}>
           <TierIcon className="w-3.5 h-3.5" />
-          <span>[{isEvaluated ? `${normTier} RISK TIER` : 'AWAITING ANALYSIS'}]</span>
+          <span>{isEvaluated ? `${normTier} RISK TIER` : 'AWAITING ANALYSIS'}</span>
         </div>
         <p className="text-xs text-[#424245] max-w-xs leading-relaxed mt-1 font-mono">
           {riskReason || config.description}

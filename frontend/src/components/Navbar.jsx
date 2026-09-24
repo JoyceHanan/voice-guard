@@ -32,7 +32,7 @@ export default function Navbar({ activeTab, setActiveTab, backendStatus, onRefre
               }`}
           >
             <Radio className="w-3.5 h-3.5 text-[#007aff]" />
-            <span>[1: LIVE DASHBOARD]</span>
+            <span>LIVE DASHBOARD</span>
           </button>
           <button
             onClick={() => setActiveTab('enrollment')}
@@ -42,7 +42,7 @@ export default function Navbar({ activeTab, setActiveTab, backendStatus, onRefre
               }`}
           >
             <UserCheck className="w-3.5 h-3.5 text-[#30d158]" />
-            <span>[2: VOICE DIRECTORY]</span>
+            <span>VOICE DIRECTORY</span>
           </button>
         </div>
 
@@ -59,7 +59,7 @@ export default function Navbar({ activeTab, setActiveTab, backendStatus, onRefre
             title="Refresh backend status"
           >
             <span className={`w-2 h-2 rounded-full ${backendStatus === 'online' ? 'bg-[#30d158]' : 'bg-[#ff3b30]'}`} />
-            <span className="uppercase text-caption-md font-semibold">{`[● ${backendStatus || 'ONLINE'}]`}</span>
+            <span className="uppercase text-caption-md font-semibold">{`● ${backendStatus || 'ONLINE'}`}</span>
             <RefreshCw className="w-3 h-3 text-[#646262]" />
           </button>
         </div>

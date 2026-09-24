@@ -61,12 +61,12 @@ export default function ActionBanner({ recommendedAction, riskTier, onOpenChalle
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className={`text-[11px] font-bold uppercase tracking-wider ${isCritical ? 'text-[#9a9898]' : 'text-[#646262]'}`}>
-              [RECOMMENDED PROTOCOL ACTION]
+              RECOMMENDED PROTOCOL ACTION
             </span>
             <span className={`px-2 py-0.5 rounded-[4px] text-[10px] uppercase font-mono font-bold ${
               isCritical ? 'bg-[#ff3b30] text-[#fdfcfc]' : currentStyle.badge
             }`}>
-              [ACTION: {normAction}]
+              ACTION: {normAction}
             </span>
           </div>
           <p className={`text-sm font-semibold leading-relaxed font-mono ${isCritical ? 'text-[#fdfcfc]' : 'text-[#201d1d]'}`}>
@@ -88,7 +88,7 @@ export default function ActionBanner({ recommendedAction, riskTier, onOpenChalle
           }`}
         >
           <ShieldAlert className={`w-4 h-4 ${isCritical ? 'text-[#fdfcfc]' : 'text-[#30d158]'}`} />
-          <span>[-&gt;] ISSUE VERIFICATION CHALLENGE</span>
+          <span>ISSUE VERIFICATION CHALLENGE</span>
           <ArrowRight className="w-3.5 h-3.5 opacity-70" />
         </button>
       </div>

@@ -53,7 +53,8 @@ from storage import (
 RECOMMENDED_THRESHOLD = 2.10
 MARGIN = 0.5
 MODERATE_MARGIN = 1.2
-MIN_DURATION = 4.0
+# Lowered from 4.0s to 2.0s per explicit product decision on 2026-09-24 — earlier validation showed real-voice scores becoming unreliable below 4s (a real clip's score dropped from +5.66 to +0.47 when trimmed to 2s). This threshold change reintroduces that risk; audio between 2-4s should be treated with reduced confidence.
+MIN_DURATION = 2.0
 
 # Load API key from backend/.env or default
 ENV_FILE = BACKEND_DIR / ".env"
@@ -300,7 +301,7 @@ async def ws_analyze_stream(
 
     audio_buffer = np.array([], dtype=np.float32)
     sample_rate = 16000
-    target_samples = int(4.0 * sample_rate)  # 64,000 samples = 4.0s minimum requirement
+    target_samples = int(MIN_DURATION * sample_rate)  # 32,000 samples = 2.0s minimum requirement
     hop_samples = int(1.0 * sample_rate)     # 16,000 samples = 1.0s sliding window hop
 
     # Exponential Moving Average (EMA) temporal smoothing state
@@ -326,10 +327,10 @@ async def ws_analyze_stream(
 
             audio_buffer = np.concatenate([audio_buffer, y_chunk])
 
-            # Check if buffer has reached 4.0s minimum requirement
+            # Check if buffer has reached minimum requirement (2.0s)
             if len(audio_buffer) >= target_samples:
                 window = audio_buffer[:target_samples]
-                duration_sec = 4.0
+                duration_sec = float(len(window) / sample_rate)
 
                 quality_label, snr_db = estimate_quality(window, sample_rate)
                 raw_score = float(detector.score_batch([window], [sample_rate])[0])
@@ -410,7 +411,7 @@ async def ws_analyze_stream(
                 await websocket.send_json({
                     "status": "buffering",
                     "duration_accumulated": curr_dur,
-                    "message": f"Accumulated {curr_dur}s / 4.0s minimum audio required...",
+                    "message": f"Accumulated {curr_dur}s / {MIN_DURATION}s minimum audio required...",
                 })
     except WebSocketDisconnect:
         pass

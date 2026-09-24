@@ -1,7 +1,6 @@
-"""VoiceGuard Classification Module.
+# Lowered from 4.0s to 2.0s per explicit product decision on 2026-09-24 — earlier validation showed real-voice scores becoming unreliable below 4s (a real clip's score dropped from +5.66 to +0.47 when trimmed to 2s). This threshold change reintroduces that risk; audio between 2-4s should be treated with reduced confidence.
+DEFAULT_MIN_DURATION = 2.0
 
-Provides decision boundary classification logic with buffer margin for voice deepfake detection.
-"""
 
 def classify(score: float, threshold: float, margin: float = 0.5) -> str:
     """Classifies a score as REAL, FAKE, or INCONCLUSIVE based on a threshold and margin.
@@ -26,7 +25,7 @@ def classify_with_duration_check(
     score: float,
     threshold: float,
     duration_seconds: float,
-    min_duration: float = 4.0,
+    min_duration: float = DEFAULT_MIN_DURATION,
     margin: float = 0.5,
 ) -> str:
     """Classifies score while checking for minimum required audio duration.
@@ -35,7 +34,7 @@ def classify_with_duration_check(
         score: Model bona-fide logit output.
         threshold: Decision boundary threshold.
         duration_seconds: Duration of the audio file in seconds.
-        min_duration: Minimum required duration in seconds (default: 4.0s).
+        min_duration: Minimum required duration in seconds (default: 2.0s).
         margin: Buffer margin around threshold.
 
     Returns:
@@ -52,7 +51,7 @@ def classify_with_quality_and_duration(
     threshold: float,
     duration_seconds: float,
     audio_quality_label: str = "GOOD",
-    min_duration: float = 4.0,
+    min_duration: float = DEFAULT_MIN_DURATION,
     margin: float = 0.5,
     moderate_margin: float = 1.2,
 ) -> str:

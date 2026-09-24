@@ -46,9 +46,9 @@ export default function CorrelationBanner() {
           </div>
           <div>
             <div className="flex items-center gap-2 font-bold text-[#201d1d]">
-              <span>[!] SECURITY ALERT: Multi-Signal Impersonation Cluster</span>
+              <span>SECURITY ALERT: Multi-Signal Impersonation Cluster</span>
               <span className="px-2 py-0.5 rounded-[4px] bg-[#f1eeee] border border-[#ff9f0a]/40 text-caption-md text-[#ff9f0a]">
-                [{correlationData.matched_calls || 0} CALLS LOGGED]
+                {Array.isArray(correlationData.matched_calls) ? correlationData.matched_calls.length : (correlationData.matched_calls || 0)} CALLS LOGGED
               </span>
             </div>
             <p className="text-[#646262] text-caption-md mt-0.5">
@@ -65,7 +65,7 @@ export default function CorrelationBanner() {
                   key={idx}
                   className="px-2 py-0.5 rounded-[4px] bg-[#f1eeee] border border-[rgba(15,0,0,0.12)] text-caption-md text-[#302c2c]"
                 >
-                  [{sig}]
+                  {typeof sig === 'string' ? sig : JSON.stringify(sig)}
                 </span>
               ))}
             </div>

@@ -256,7 +256,7 @@ export default function App() {
                   <Radio className="w-4 h-4 text-[#007aff]" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#646262]">[AUDIO EVALUATION MODE]</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#646262]">AUDIO EVALUATION MODE</span>
                   <p className="text-xs text-[#201d1d]">Select File Upload or Real-Time Mic Stream</p>
                 </div>
               </div>
@@ -265,7 +265,7 @@ export default function App() {
                 {/* File Upload Selector & Trigger */}
                 <label className="flex items-center space-x-2 bg-[#f8f7f7] border border-[rgba(15,0,0,0.12)] hover:border-[#646262] px-3 py-2 rounded-[4px] text-xs font-mono text-[#201d1d] cursor-pointer transition-colors">
                   <Upload className="w-3.5 h-3.5 text-[#646262]" />
-                  <span className="truncate max-w-[120px]">{file ? file.name : '[CHOOSE FILE]'}</span>
+                  <span className="truncate max-w-[120px]">{file ? file.name : 'CHOOSE FILE'}</span>
                   <input
                     type="file"
                     accept="audio/*"
@@ -288,7 +288,7 @@ export default function App() {
                   }`}
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>{analyzingFile ? '[ANALYZING...]' : '[ANALYZE FILE]'}</span>
+                  <span>{analyzingFile ? 'ANALYZING...' : 'ANALYZE FILE'}</span>
                 </button>
 
                 <div className="h-5 w-[1px] bg-[rgba(15,0,0,0.12)] mx-1 hidden sm:block" />
@@ -300,7 +300,7 @@ export default function App() {
                     className="px-3.5 py-2 rounded-[4px] text-xs font-mono font-bold bg-[#ff3b30] hover:bg-[#d70015] text-[#fdfcfc] transition-all flex items-center space-x-1.5"
                   >
                     <Square className="w-3.5 h-3.5 fill-current" />
-                    <span>[STOP STREAM]</span>
+                    <span>STOP STREAM</span>
                   </button>
                 ) : (
                   <button
@@ -309,7 +309,7 @@ export default function App() {
                     className="px-3.5 py-2 rounded-[4px] text-xs font-mono font-bold bg-[#f8f7f7] hover:bg-[#f1eeee] border border-[rgba(15,0,0,0.12)] text-[#201d1d] transition-all flex items-center space-x-1.5"
                   >
                     <Mic className="w-3.5 h-3.5 text-[#30d158]" />
-                    <span>[START STREAM]</span>
+                    <span>START STREAM</span>
                   </button>
                 )}
 
@@ -334,7 +334,7 @@ export default function App() {
                     wsStatus === 'connected' ? 'bg-[#30d158] animate-ping' : wsStatus === 'connecting' ? 'bg-[#ff9f0a] animate-pulse' : 'bg-[#ff3b30]'
                   }`} />
                   <span className="text-[#646262]">
-                    WEBSOCKET STATUS: <strong className="text-[#201d1d] uppercase">[{wsStatus}]</strong>
+                    WEBSOCKET STATUS: <strong className="text-[#201d1d] uppercase">{wsStatus}</strong>
                   </span>
                 </div>
                 {isStreaming && (
@@ -350,7 +350,7 @@ export default function App() {
             {error && (
               <div className="flex items-center space-x-2 text-xs text-[#ff3b30] bg-[#ff3b30]/10 border border-[#ff3b30]/30 rounded-none p-4 font-mono">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>[{error}]</span>
+                <span>{error}</span>
               </div>
             )}
 
