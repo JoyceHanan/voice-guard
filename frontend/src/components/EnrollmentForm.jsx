@@ -29,8 +29,10 @@ export default function EnrollmentForm() {
   const [enrolledList, setEnrolledList] = useState([]);
   const [fetchingList, setFetchingList] = useState(false);
 
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const audioContextRef = useRef(null);
+  const audioProcessorRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const pcmBufferRef = useRef([]);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -56,28 +58,66 @@ export default function EnrollmentForm() {
     }
   };
 
+  // Helper function to encode Float32 audio samples into 16-bit PCM WAV ArrayBuffer
+  const encodeWavChunk = (samples, sampleRate = 16000) => {
+    const numChannels = 1;
+    const bytesPerSample = 2; // 16-bit PCM
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    /* RIFF identifier */
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + dataSize, true);
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    /* fmt chunk */
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true);
+    view.setUint32(20, 1, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    /* data chunk */
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
+  };
+
   const startRecording = async () => {
     setError(null);
     setMessage(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
+      mediaStreamRef.current = stream;
 
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      audioProcessorRef.current = processor;
+      pcmBufferRef.current = [];
+
+      processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        for (let i = 0; i < input.length; i++) {
+          pcmBufferRef.current.push(input[i]);
         }
       };
 
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        setRecordedBlob(audioBlob);
-        setFile(null); // Clear file selection if mic was used
-        stream.getTracks().forEach((track) => track.stop());
-      };
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
 
-      mediaRecorderRef.current.start();
       setIsRecording(true);
       setRecordTime(0);
 
@@ -91,10 +131,30 @@ export default function EnrollmentForm() {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (isRecording) {
       setIsRecording(false);
       clearInterval(timerRef.current);
+
+      if (audioProcessorRef.current) {
+        audioProcessorRef.current.disconnect();
+        audioProcessorRef.current = null;
+      }
+
+      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 16000;
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+
+      const wavBuffer = encodeWavChunk(pcmBufferRef.current, sampleRate);
+      const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+      setRecordedBlob(wavBlob);
+      setFile(null);
     }
   };
 

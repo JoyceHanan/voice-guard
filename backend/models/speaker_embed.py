@@ -31,17 +31,27 @@ def load_speaker_model():
 
 
 import soundfile as sf
+import librosa
+import numpy as np
 
 def compute_embedding(wav_path: str) -> torch.Tensor:
-    """Load WAV file using soundfile and return a 1D PyTorch tensor speaker embedding vector."""
+    """Load WAV/audio file using soundfile (with librosa fallback) and return a 1D PyTorch tensor speaker embedding vector."""
     classifier = load_speaker_model()
-    data, fs = sf.read(wav_path, dtype="float32")
+    try:
+        data, fs = sf.read(wav_path, dtype="float32")
+    except Exception:
+        # Fallback to librosa for MP3/WebM/OGG files
+        data, fs = librosa.load(wav_path, sr=None, mono=False)
+        if data.dtype != np.float32:
+            data = data.astype(np.float32)
 
     # Convert numpy data to PyTorch tensor (shape: channels x samples)
     if data.ndim == 1:
         signal = torch.from_numpy(data).unsqueeze(0)
     else:
-        signal = torch.from_numpy(data.T)
+        signal = torch.from_numpy(data.T if data.shape[0] != 1 and data.shape[1] == 1 else data)
+        if signal.ndim == 1:
+            signal = signal.unsqueeze(0)
 
     # Convert to mono if multi-channel
     if signal.shape[0] > 1:

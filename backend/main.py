@@ -297,21 +297,61 @@ async def ws_analyze_stream(
         return
 
     enrolled = load_enrolled_speakers()
-    ref_emb = enrolled.get(claimed_identity.strip()) if claimed_identity and claimed_identity.strip() in enrolled else None
+
+    def update_speaker_ref(cid: str):
+        if not cid or not cid.strip() or not enrolled:
+            return None
+        clean = cid.strip()
+        if clean in enrolled:
+            return enrolled[clean]
+        for k, v in enrolled.items():
+            if k.lower() == clean.lower():
+                return v
+        return None
+
+    # If no claimed identity provided, default to first enrolled speaker so ECAPA-TDNN always evaluates
+    if (not claimed_identity or not claimed_identity.strip()) and enrolled:
+        claimed_identity = list(enrolled.keys())[0]
+
+    ref_emb = update_speaker_ref(claimed_identity)
 
     audio_buffer = np.array([], dtype=np.float32)
     sample_rate = 16000
-    target_samples = int(MIN_DURATION * sample_rate)  # 32,000 samples = 2.0s minimum requirement
+    STREAM_WINDOW_DURATION = 4.0  # Full 4.0s continuous window (64,000 samples) to match POST /analyze
+    target_samples = int(STREAM_WINDOW_DURATION * sample_rate)  # 64,000 samples
     hop_samples = int(1.0 * sample_rate)     # 16,000 samples = 1.0s sliding window hop
 
     # Exponential Moving Average (EMA) temporal smoothing state
     alpha = 0.4
     prev_smoothed_score = None
 
+    debug_ws_dir = BASE_DIR / "scratch" / "debug_ws_audio"
+    debug_ws_dir.mkdir(parents=True, exist_ok=True)
+    window_counter = 0
+
     try:
         while True:
-            data = await websocket.receive_bytes()
-            if not data:
+            msg = await websocket.receive()
+            if "text" in msg and msg["text"]:
+                try:
+                    cfg = json.loads(msg["text"])
+                    if "claimed_identity" in cfg:
+                        claimed_identity = cfg["claimed_identity"]
+                        ref_emb = update_speaker_ref(claimed_identity)
+                    if "caller_number" in cfg:
+                        caller_number = cfg["caller_number"]
+                    if "new_beneficiary" in cfg:
+                        new_beneficiary = bool(cfg["new_beneficiary"])
+                    if "urgency" in cfg:
+                        urgency = bool(cfg["urgency"])
+                    if "transaction_amount" in cfg:
+                        transaction_amount = float(cfg["transaction_amount"])
+                except Exception as ex:
+                    print("WS config update error:", ex)
+                continue
+            elif "bytes" in msg and msg["bytes"]:
+                data = msg["bytes"]
+            else:
                 continue
 
             # Load audio chunk bytes (supports WAV format or raw PCM float32)
@@ -325,12 +365,18 @@ async def ws_analyze_stream(
                 # Fallback: assume raw float32 buffer
                 y_chunk = np.frombuffer(data, dtype=np.float32)
 
+            y_chunk = np.nan_to_num(y_chunk, nan=0.0, posinf=0.0, neginf=0.0)
             audio_buffer = np.concatenate([audio_buffer, y_chunk])
 
-            # Check if buffer has reached minimum requirement (2.0s)
+            # Check if buffer has reached minimum requirement (4.0s continuous window)
             if len(audio_buffer) >= target_samples:
                 window = audio_buffer[:target_samples]
                 duration_sec = float(len(window) / sample_rate)
+
+                # Save debug WAV window file for Task 1 inspection
+                window_counter += 1
+                debug_wav = debug_ws_dir / f"stream_window_{window_counter}.wav"
+                sf.write(str(debug_wav), window, sample_rate, subtype="PCM_16")
 
                 quality_label, snr_db = estimate_quality(window, sample_rate)
                 raw_score = float(detector.score_batch([window], [sample_rate])[0])
@@ -400,6 +446,9 @@ async def ws_analyze_stream(
                     "audio_quality": {"label": quality_label, "snr_db": snr_db},
                     "risk_tier": risk_fusion["tier"],
                     "risk_score": risk_fusion["score"],
+                    "risk_reason": risk_fusion["reason"],
+                    "evidence_breakdown": risk_fusion["breakdown"],
+                    "caller_classification": caller_class,
                     "recommended_action": rec_act,
                 }
                 await websocket.send_json(response_payload)

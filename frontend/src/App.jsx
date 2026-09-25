@@ -42,7 +42,9 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
   const wsRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const audioProcessorRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   // Challenge Modal State
   const [isChallengeOpen, setIsChallengeOpen] = useState(false);
@@ -59,7 +61,11 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setEnrolledList(data.enrolled_speakers || []);
+        const list = data.enrolled_speakers || [];
+        setEnrolledList(list);
+        if (list.length > 0 && !claimedIdentity) {
+          setClaimedIdentity(list[0]);
+        }
       }
     } catch (err) {
       console.error('Error fetching enrolled speakers in App:', err);
@@ -70,12 +76,26 @@ export default function App() {
     fetchEnrolled();
   }, [activeTab]);
 
-  // Clean up WebSocket & MediaRecorder on unmount
+  // Clean up WebSocket & Audio Context on unmount
   useEffect(() => {
     return () => {
       stopLiveStreaming();
     };
   }, []);
+
+  // Live update WebSocket session configuration when controls change during streaming
+  useEffect(() => {
+    if (isStreaming && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'update_config',
+        claimed_identity: claimedIdentity,
+        caller_number: callerNumber,
+        new_beneficiary: newBeneficiary,
+        urgency: urgency,
+        transaction_amount: transactionAmount,
+      }));
+    }
+  }, [claimedIdentity, callerNumber, newBeneficiary, urgency, transactionAmount, isStreaming]);
 
   // --- POST /analyze Audio File Flow ---
   const handleAnalyzeFile = async () => {
@@ -117,19 +137,60 @@ export default function App() {
     }
   };
 
+  // Helper function to encode Float32 audio samples into 16kHz 16-bit PCM WAV chunk ArrayBuffer
+  const encodeWavChunk = (samples, sampleRate = 16000) => {
+    const numChannels = 1;
+    const bytesPerSample = 2; // 16-bit PCM
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    /* RIFF identifier */
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + dataSize, true);
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    /* fmt chunk */
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true);
+    view.setUint32(20, 1, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    /* data chunk */
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
+  };
+
   // --- WebSocket Real-Time Audio Streaming Flow ---
   const startLiveStreaming = async () => {
     setError(null);
     setWsStatus('connecting');
 
+    const activeIdentity = claimedIdentity || (enrolledList.length > 0 ? enrolledList[0] : 'CFO_Rajesh');
+    if (!claimedIdentity) {
+      setClaimedIdentity(activeIdentity);
+    }
+
     try {
       // 1. Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
       
       // 2. Build WS URL with parameters
       const params = new URLSearchParams({
         api_key: API_KEY,
-        ...(claimedIdentity && { claimed_identity: claimedIdentity }),
+        claimed_identity: activeIdentity,
         ...(callerNumber && { caller_number: callerNumber }),
         new_beneficiary: newBeneficiary ? 'true' : 'false',
         urgency: urgency ? 'true' : 'false',
@@ -144,18 +205,33 @@ export default function App() {
         setWsStatus('connected');
         setIsStreaming(true);
 
-        // Start MediaRecorder capturing 2-second binary chunks
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        mediaRecorderRef.current = mediaRecorder;
+        // Set up Web Audio API to process live mic input
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioContextRef.current = audioCtx;
+        const actualSampleRate = audioCtx.sampleRate; // Dynamic hardware sample rate (e.g. 48000, 44100, or 16000)
+        const source = audioCtx.createMediaStreamSource(stream);
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        audioProcessorRef.current = processor;
 
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(e.data);
+        let pcmBuffer = [];
+        const samplesPerChunk = Math.round(actualSampleRate * 1.0); // Send 1.0-second WAV chunk at actual sample rate
+
+        processor.onaudioprocess = (e) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          const input = e.inputBuffer.getChannelData(0);
+          for (let i = 0; i < input.length; i++) {
+            pcmBuffer.push(input[i]);
+          }
+          if (pcmBuffer.length >= samplesPerChunk) {
+            const chunkSamples = pcmBuffer.slice(0, samplesPerChunk);
+            pcmBuffer = pcmBuffer.slice(samplesPerChunk);
+            const wavBuffer = encodeWavChunk(chunkSamples, actualSampleRate);
+            ws.send(wavBuffer);
           }
         };
 
-        // Slice audio every 2000ms (2s)
-        mediaRecorder.start(2000);
+        source.connect(processor);
+        processor.connect(audioCtx.destination);
       };
 
       ws.onmessage = (event) => {
@@ -167,6 +243,10 @@ export default function App() {
             return;
           }
 
+          if (update.status === 'buffering') {
+            return;
+          }
+
           // Map WebSocket update payload to standard result schema
           setAnalysisResult({
             risk_score: update.risk_score !== undefined ? update.risk_score : Math.round((update.smoothed_score || update.raw_score || 0) * 100),
@@ -174,7 +254,7 @@ export default function App() {
             risk_reason: update.risk_reason || update.result || 'Real-time WebSocket stream evaluation',
             voice_result: update.result || update.voice_result || 'INCONCLUSIVE',
             score: update.smoothed_score || update.raw_score || 0,
-            duration: update.duration || 4.0,
+            duration: update.window_duration || update.duration || 2.0,
             speaker_similarity: update.speaker_similarity,
             audio_quality: update.audio_quality || { label: 'GOOD', snr_db: 25.0 },
             caller_classification: update.caller_classification || { category: 'unknown_neutral', name: null, reason: 'Live call' },
@@ -206,14 +286,21 @@ export default function App() {
   };
 
   const stopLiveStreaming = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
-      }
+    if (audioProcessorRef.current) {
+      audioProcessorRef.current.disconnect();
+      audioProcessorRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();
+      wsRef.current = null;
     }
     setIsStreaming(false);
     setWsStatus('disconnected');
